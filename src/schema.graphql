@@ -21,8 +21,39 @@ input filtersInput {
   rateValue: String
 }
 
+type ProductCount {
+  premarket: Int
+  primary: Int
+  resale: Int
+  total: Int
+}
+
+type ProductPayments {
+  totalPayments: Float
+  platformFees: Float
+}
+
+type TotalTrades {
+  buy: Int
+  sell: Int
+}
+
+type totalUsers {
+  subscribed: Int
+  nonSubscribed: Int
+}
+
+type DashboardStats {
+  productCount: ProductCount
+  totalRevenue: Float
+  productPayments: ProductPayments
+  totalTrades: TotalTrades
+  totalUsers: totalUsers
+}
+
 type Query {
   getPropertyRates(filter: filtersInput): Float
+  adminDashboardStats: DashboardStats
 }
 
 type Mutation {
