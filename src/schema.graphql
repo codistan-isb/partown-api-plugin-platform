@@ -51,11 +51,40 @@ type DashboardStats {
   totalUsers: totalUsers
 }
 
-type Query {
-  getPropertyRates(filter: filtersInput): Float
-  adminDashboardStats: DashboardStats
+type RevenueData {
+  totalRevenue: Float
+  revenueChange: Float
+  revenueChangePercentage: Float
+  monthlyRevenue: [Float]
 }
 
-type Mutation {
+type NetContributions {
+  Deposits: Float
+  Withdrawals: Float
+}
+
+type Portfolio {
+  netContributions: NetContributions
+  amountInvested: Float!
+  totalCost: Float!
+  unrealisedCapitalGain: Float!
+  dividendsReceived: Float!
+  realisedCapitalGain: Float!
+  performance: [PerformanceData!]!
+}
+
+type PerformanceData {
+  date: String!
+  value: Float!
+}
+
+extend type Query {
+  getPropertyRates(filter: filtersInput): Float
+  adminDashboardStats: DashboardStats
+  revenueStats(year: Int!): RevenueData
+  portfolio: Portfolio
+}
+
+extend type Mutation {
   createProductRate(input: productRateInput!): Boolean
 }
