@@ -2,7 +2,12 @@ import decodeOpaqueId from "@reactioncommerce/api-utils/decodeOpaqueId.js";
 
 const calculateTotalRevenue = (transactions) => {
   return transactions.reduce((total, transaction) => {
-    return total + transaction?.serviceCharges?.total;
+    return (
+      total +
+      (transaction?.serviceCharges?.total
+        ? transaction?.serviceCharges?.total
+        : 0)
+    );
   }, 0);
 };
 
@@ -12,7 +17,11 @@ const calculateRevenueChange = (
 ) => {
   const currentWeekRevenue = calculateTotalRevenue(currentWeekTransactions);
   const previousWeekRevenue = calculateTotalRevenue(previousWeekTransactions);
+  console.log("current week", currentWeekRevenue);
+  console.log("previous week", previousWeekRevenue);
+
   const revenueChange = currentWeekRevenue - previousWeekRevenue;
+
   const revenueChangePercentage = previousWeekRevenue
     ? (revenueChange / previousWeekRevenue) * 100
     : 0;
@@ -25,7 +34,9 @@ const calculateMonthlyRevenue = (transactions) => {
   const monthlyRevenue = new Array(12).fill(0);
   transactions.forEach((transaction) => {
     const transactionMonth = new Date(transaction.createdAt).getMonth();
-    monthlyRevenue[transactionMonth] += transaction.serviceCharges.total;
+    monthlyRevenue[transactionMonth] += transaction?.serviceCharges?.total
+      ? transaction?.serviceCharges?.total
+      : 0;
   });
   return monthlyRevenue;
 };
@@ -292,6 +303,56 @@ export default {
       };
     } catch (err) {
       return err;
+    }
+  },
+  async propertyPayments(parent, { filter }, context, info) {
+    try {
+      const { Transactions } = context.collections;
+      const aggregateParams = [
+        {
+          $group: {
+            _id: "$user_id",
+            totalAmount: { $sum: "$amount" },
+            totalFeesAmount: { $sum: "$serviceCharges.total" },
+          },
+        },
+      ];
+      if (filter === "month") {
+        // Get the current month and year
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+        // Add a $match stage to the pipeline to filter by month and year
+        aggregateParams.unshift({
+          $match: {
+            $expr: {
+              $and: [
+                { $eq: [{ $month: "$createdAt" }, currentMonth] },
+                { $eq: [{ $year: "$createdAt" }, currentYear] },
+              ],
+            },
+          },
+        });
+      } else if (filter === "year") {
+        // Get the current year
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        // Add a $match stage to the pipeline to filter by year
+        aggregateParams.unshift({
+          $match: {
+            $expr: { $eq: [{ $year: "$createdAt" }, currentYear] },
+          },
+        });
+      }
+      const totalAmount = await Transactions.aggregate(
+        aggregateParams
+      ).toArray();
+      return {
+        totalPayments: totalAmount[0]?.totalAmount,
+        platformFees: totalAmount[0]?.totalFeesAmount,
+      };
+    } catch (err) {
+      return new Error(err);
     }
   },
 };

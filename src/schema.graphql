@@ -36,6 +36,7 @@ type ProductPayments {
 type TotalTrades {
   buy: Int
   sell: Int
+  monthlyTrend: [Int]
 }
 
 type totalUsers {
@@ -78,8 +79,14 @@ type PerformanceData {
   value: Float!
 }
 
+enum paymentsFilter {
+  month
+  year
+}
+
 extend type Query {
   getPropertyRates(filter: filtersInput): Float
+  propertyPayments(filter: paymentsFilter!): ProductPayments
   adminDashboardStats: DashboardStats
   revenueStats(year: Int!): RevenueData
   portfolio: Portfolio
