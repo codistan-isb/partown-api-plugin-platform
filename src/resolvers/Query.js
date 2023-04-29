@@ -41,6 +41,22 @@ const calculateMonthlyRevenue = (transactions) => {
   return monthlyRevenue;
 };
 
+const getMonthlyTrades = (trades) => {
+  const monthlyTrades = {};
+
+  trades.forEach((trade) => {
+    const tradeMonth = new Date(trade?.createdAt).getMonth();
+
+    if (monthlyTrades[tradeMonth]) {
+      monthlyTrades[tradeMonth]++;
+    } else {
+      monthlyTrades[tradeMonth] = 1;
+    }
+  });
+
+  const result = Array.from({ length: 12 }, (_, i) => monthlyTrades[i] || 0);
+  return result;
+};
 export default {
   async getPropertyRates(parent, args, context, info) {
     try {
@@ -98,7 +114,11 @@ export default {
         },
       ]).toArray();
 
-      console.log("total payments are", totalAmount);
+      const trades = await Trades.find().toArray();
+
+      console.log("all trades are are", trades);
+
+      const monthlyTrend = getMonthlyTrades(trades); // An array of trade counts for each month
 
       const allData = {
         productCount: {
@@ -115,6 +135,7 @@ export default {
         totalTrades: {
           buy: buyTradesCount,
           sell: sellTradesCount,
+          monthlyTrend,
         },
         totalUsers: {
           subscribed: 0,
