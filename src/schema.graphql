@@ -62,21 +62,25 @@ type RevenueData {
 type NetContributions {
   Deposits: Float
   Withdrawals: Float
+  total: Float
 }
 
 type Portfolio {
   netContributions: NetContributions
-  amountInvested: Float!
-  totalCost: Float!
-  unrealisedCapitalGain: Float!
-  dividendsReceived: Float!
-  realisedCapitalGain: Float!
-  performance: [PerformanceData!]!
+  amountInvested: Float
+  totalCost: Float
+  unrealisedCapitalGain: Float
+  dividendsReceived: Float
+  realisedCapitalGain: Float
+  realisedPerformance: Float
+  performance: Float
+  currentValueArray: [Float]
+  investedValueArray: [Float]
 }
 
 type PerformanceData {
-  date: String!
-  value: Float!
+  date: String
+  value: Float
 }
 
 enum paymentsFilter {

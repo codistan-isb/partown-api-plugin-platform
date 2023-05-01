@@ -1,4 +1,6 @@
 import decodeOpaqueId from "@reactioncommerce/api-utils/decodeOpaqueId.js";
+import ReactionError from "@reactioncommerce/reaction-error";
+import userLineChart from "../util/userLineChart.js";
 
 const calculateTotalRevenue = (transactions) => {
   return transactions.reduce((total, transaction) => {
@@ -221,106 +223,156 @@ export default {
   },
   async portfolio(parent, args, context, info) {
     try {
-      const { userId, collections } = context;
-      const { Trades, Transactions } = collections;
-
-      // Get all the trades for the user
-      const trades = await Trades.find({ createdBy: userId }).toArray();
-
-      // Get all the transactions for the user
-      const transactions = await Transactions.find({
-        transactionBy: userId,
-      }).toArray();
-
-      let amountInvested = 0;
-      let totalCost = 0;
-      let unrealisedCapitalGain = 0;
+      const { authToken, userId, collections } = context;
+      const { Trades, Transactions, Catalog, Ownership } = collections;
       let dividendsReceived = 0;
-      let realisedCapitalGain = 0;
-      let portfolioValue = 0;
-      let performance = [];
 
-      let currentMonth = "";
-      trades.forEach((trade) => {
-        const month = new Date(trade.createdAt).toLocaleString("default", {
-          month: "short",
-          year: "numeric",
-        });
-        if (month !== currentMonth) {
-          // Add the portfolio value for the previous month to the performance data
-          if (portfolioValue !== 0) {
-            performance.push({ date: currentMonth, value: portfolioValue });
-          }
-          // Reset the portfolio value for the current month
-          portfolioValue = 0;
-          currentMonth = month;
-        }
-        const currentValue = trade.property.currentValue;
-        portfolioValue +=
-          trade?.tradeType === "offer" ? -trade?.price : trade?.price;
-        if (trade?.tradeType === "offer") {
-          amountInvested += trade?.price;
-          totalCost += trade?.price;
-          unrealisedCapitalGain -=
-            (trade?.area * trade?.price) / trade?.originalQuantity -
-            (trade?.area * currentValue) / trade?.originalQuantity;
-        } else if (trade?.tradeType === "bid") {
-          totalCost += trade?.price;
-          realisedCapitalGain += trade?.price - trade.cost;
-          portfolioValue += trade?.price - trade.cost;
-        }
-      });
-      transactions.forEach((transaction) => {
-        const month = new Date(transaction.createdAt).toLocaleString(
-          "default",
-          { month: "short", year: "numeric" }
-        );
-        if (month !== currentMonth) {
-          // Add the portfolio value for the previous month to the performance data
-          if (portfolioValue !== 0) {
-            performance.push({ date: currentMonth, value: portfolioValue });
-          }
-          // Reset the portfolio value for the current month
-          portfolioValue = 0;
-          currentMonth = month;
-        }
-        if (transaction.type === "buy") {
-          amountInvested += transaction.amount;
-          totalCost += transaction.amount;
-          const currentValue = transaction.property.currentValue;
-          unrealisedCapitalGain -=
-            (transaction.units * transaction.amount) / transaction.totalUnits -
-            (transaction.units * currentValue) / transaction.totalUnits;
-          portfolioValue -= transaction.units * currentValue;
-        } else if (transaction.type === "sell") {
-          totalCost += transaction.amount;
-          realisedCapitalGain += transaction.amount - transaction.cost;
-          portfolioValue += transaction.amount - transaction.cost;
-        } else if (transaction.type === "dividend") {
-          dividendsReceived += transaction.amount;
-        }
-      });
-      // Add the portfolio value for the last month to the performance data
-      if (portfolioValue !== 0) {
-        performance.push({ date: currentMonth, value: portfolioValue });
-      }
-      // Calculate the current portfolio value
-      const properties = trades.map((trade) => trade.property);
-      let propertyValue = 0;
-      properties.forEach((property) => {
-        propertyValue += property.currentValue * property.units;
-      });
-      const portfolioCurrentValue = propertyValue + portfolioValue;
+      console.log("userId for check", userId);
+
+      if (!authToken || !userId)
+        throw new ReactionError("access-denied", "Unauthorzied");
+
+      // unrealised capital gain:
+
+      const { totalInvested, currentValue, performance } = await userLineChart(
+        userId,
+        Trades,
+        Catalog,
+        Ownership
+      );
+
+      const [unrealisedCapitalGain] = await Trades.aggregate([
+        {
+          $match: {
+            createdBy: userId,
+            completionStatus: { $ne: "completed" },
+            tradeType: { $ne: "offer" },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            unrealisedCapitalGain: {
+              $sum: { $multiply: ["$price", "$area"] },
+            },
+          },
+        },
+      ]).toArray();
+
+      //realised capital gain
+      const [realisedCapitalGain] = await Trades.aggregate([
+        {
+          $match: {
+            createdBy: userId,
+            completionStatus: "completed",
+            tradeType: { $ne: "offer" },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            realisedCapitalGain: {
+              $sum: { $multiply: ["$price", "$area"] },
+            },
+          },
+        },
+      ]).toArray();
+
+      //total amount invested
+      const [totalInvestment] = await Trades.aggregate([
+        {
+          $match: {
+            createdBy: userId,
+            tradeType: { $ne: "bid" },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalInvestment: {
+              $sum: { $multiply: ["$price", "$area"] },
+            },
+          },
+        },
+      ]).toArray();
+
+      //total cost
+      const [totalCost] = await Transactions.aggregate([
+        {
+          $match: {
+            transactionBy: userId,
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalCost: {
+              $sum: "$amount",
+            },
+          },
+        },
+      ]).toArray();
+      const totalTransactions = await Transactions.aggregate([
+        {
+          $match: {
+            approvalStatus: "approved",
+            transactionBy: userId,
+            $or: [
+              { transactionType: "deposit" },
+              { transactionType: "withdraw" },
+            ],
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalDeposits: {
+              $sum: {
+                $cond: [{ $eq: ["$transactionType", "deposit"] }, "$amount", 0],
+              },
+            },
+            totalWithdrawals: {
+              $sum: {
+                $cond: [
+                  { $eq: ["$transactionType", "withdraw"] },
+                  "$amount",
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      ]).toArray();
+
+      console.log("total transactions are ", totalTransactions);
+
+      const [{ totalDeposits = 0, totalWithdrawals = 0 } = {}] =
+        totalTransactions;
+
+      let netContributions = {
+        Deposits: totalDeposits,
+        Withdrawals: totalWithdrawals,
+        total: totalDeposits - totalWithdrawals,
+      };
 
       return {
-        amountInvested,
-        totalCost,
-        unrealisedCapitalGain,
+        unrealisedCapitalGain: unrealisedCapitalGain?.unrealisedCapitalGain
+          ? unrealisedCapitalGain?.unrealisedCapitalGain
+          : 0,
+        realisedCapitalGain: realisedCapitalGain?.realisedCapitalGain
+          ? realisedCapitalGain?.realisedCapitalGain
+          : 0,
+        amountInvested: totalInvestment?.totalInvestment
+          ? totalInvestment?.totalInvestment
+          : 0,
+        totalCost: totalCost?.totalCost ? totalCost?.totalCost : 0,
+        netContributions,
         dividendsReceived,
-        realisedCapitalGain,
-        portfolioValue,
-        portfolioCurrentValue,
+        investedValueArray: totalInvested,
+        currentValueArray: currentValue,
         performance,
+        realisedPerformance:
+          dividendsReceived + realisedCapitalGain?.realisedCapitalGain,
       };
     } catch (err) {
       return err;
