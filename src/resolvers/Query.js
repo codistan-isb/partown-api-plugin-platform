@@ -88,21 +88,31 @@ export default {
 
       const countResale = await Catalog.countDocuments({
         "product.propertySaleType.type": "Resale",
+        "product.isVisible": { $ne: false },
       });
       const countPrimary = await Catalog.countDocuments({
         "product.propertySaleType.type": "Primary",
+        "product.isVisible": { $ne: false },
       });
       const countPremarket = await Catalog.countDocuments({
         "product.propertySaleType.type": "Premarket",
+        "product.isVisible": { $ne: false },
       });
 
-      const buyTradesCount = await Trades.countDocuments({
-        tradeType: "offer",
-      });
+      const buyTradesCount = await Trades.aggregate([
+        { $match: { tradeType: "offer" } },
+        { $group: { _id: "$productId", count: { $sum: 1 } } },
+        { $group: { _id: null, totalCount: { $sum: 1 } } },
+      ]).toArray();
 
-      const sellTradesCount = await Trades.countDocuments({
-        tradeType: "bid",
-      });
+      const sellTradesCount = await Trades.aggregate([
+        { $match: { tradeType: "bid" } },
+        { $group: { _id: "$productId", count: { $sum: 1 } } },
+        { $group: { _id: null, totalCount: { $sum: 1 } } },
+      ]).toArray();
+
+      console.log("buy count trades", buyTradesCount);
+      console.log("sell trades count ", sellTradesCount);
 
       const usersCount = await Accounts.countDocuments();
 
@@ -117,8 +127,6 @@ export default {
       ]).toArray();
 
       const trades = await Trades.find().toArray();
-
-      console.log("all trades are are", trades);
 
       const monthlyTrend = getMonthlyTrades(trades); // An array of trade counts for each month
 
@@ -135,8 +143,8 @@ export default {
         },
 
         totalTrades: {
-          buy: buyTradesCount,
-          sell: sellTradesCount,
+          buy: buyTradesCount[0]?.totalCount,
+          sell: sellTradesCount[0]?.totalCost,
           monthlyTrend,
         },
         totalUsers: {
@@ -230,7 +238,7 @@ export default {
       console.log("userId for check", userId);
 
       if (!authToken || !userId)
-        throw new ReactionError("access-denied", "Unauthorzied");
+        throw new ReactionError("access-denied", "Unauthorized");
 
       // unrealised capital gain:
 

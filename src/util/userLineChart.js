@@ -9,6 +9,7 @@ export default async function (userId, Trades, Catalog, Ownership) {
     const month = `${date.getMonth() + 1}-${date.getFullYear()}`;
 
     console.log("month is ", month);
+    
     if (!chartData[month]) {
       chartData[month] = {
         month: `${date.toLocaleString("default", {
@@ -21,11 +22,7 @@ export default async function (userId, Trades, Catalog, Ownership) {
     chartData[month].totalInvested += trade.price;
   });
 
-  console.log("chart data is ", chartData);
-
   const products = await Catalog.find({}).toArray();
-
-  console.log("product are ", products);
 
   products.forEach((product) => {
     const date = new Date(product.updatedAt);

@@ -46,4 +46,78 @@ export default {
       return err;
     }
   },
+  async updateBankDetails(_, args, context, info) {
+    try {
+      const { userId, authToken, collections } = context;
+
+      const { BankInfo, Accounts } = collections;
+
+      const {
+        sortCode,
+        accountNumber,
+        accountName,
+        paymentReferences,
+        isPlatformInfo,
+      } = args.input;
+
+      const adminAccount = await Accounts.findOne({
+        _id: userId,
+      });
+
+      console.log("admin account is ", adminAccount);
+
+      console.log("adminAccount?.adminUIShopIds", adminAccount?.adminUIShopIds);
+
+      if (
+        !adminAccount?.adminUIShopIds?.length ||
+        adminAccount?.adminUIShopIds?.length < 0
+      )
+        return new Error(
+          "You are not permitted to update Platform bank details"
+        );
+
+      let response;
+
+      if (isPlatformInfo) {
+        // Check if there is an existing record with isPlatformInfo=true
+        const existingRecord = await BankInfo.findOne({ isPlatformInfo: true });
+
+        // Merge existing values with new values
+        const mergedValues = {
+          sortCode: sortCode || existingRecord.sortCode,
+          accountNumber: accountNumber || existingRecord.accountNumber,
+          accountName: accountName || existingRecord.accountName,
+          paymentReferences:
+            paymentReferences || existingRecord.paymentReferences,
+          isPlatformInfo,
+          accountId: userId,
+        };
+
+        if (existingRecord) {
+          // Update the existing record
+          response = await BankInfo.updateOne(
+            { _id: existingRecord._id },
+            { $set: mergedValues }
+          );
+        } else {
+          // Insert a new record
+          response = await BankInfo.insertOne(mergedValues);
+        }
+      } else {
+        // Insert a new record with isPlatformInfo=false
+        response = await BankInfo.insertOne({
+          sortCode,
+          accountNumber,
+          accountName,
+          paymentReferences,
+          isPlatformInfo,
+          accountId: userId,
+        });
+      }
+
+      return response?.result?.n > 0;
+    } catch (err) {
+      return err;
+    }
+  },
 };

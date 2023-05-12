@@ -22,11 +22,16 @@ const resolvers = {
 export default async function register(app) {
   await app.registerPlugin({
     label: pkg.label,
-    name: "productrate",
+    name: pkg.name,
     version: pkg.version,
     collections: {
       ProductRate: {
         name: "ProductRate",
+        updatedAt: { type: Date, default: Date.now },
+        createdAt: { type: Date, default: Date.now },
+      },
+      BankInfo: {
+        name: "BankInfo",
         updatedAt: { type: Date, default: Date.now },
         createdAt: { type: Date, default: Date.now },
       },

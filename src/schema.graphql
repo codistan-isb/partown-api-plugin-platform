@@ -15,6 +15,14 @@ input productRateInput {
   buyerFee: Float
   productType: ProductType!
 }
+input bankDetailsInput {
+  sortCode: String
+  accountNumber: String
+  accountName: String
+  paymentReferences: String
+  isPlatformInfo: Boolean!
+  shopId: ID!
+}
 
 input filtersInput {
   rateType: ProductType
@@ -37,6 +45,15 @@ type TotalTrades {
   buy: Int
   sell: Int
   monthlyTrend: [Int]
+}
+
+type bankDetails {
+  sortCode: String
+  accountNumber: String
+  accountName: String
+  paymentReferences: String
+  isPlatformInfo: Boolean
+  accountId: ID
 }
 
 type totalUsers {
@@ -94,8 +111,10 @@ extend type Query {
   adminDashboardStats: DashboardStats
   revenueStats(year: Int!): RevenueData
   portfolio: Portfolio
+  platformBankDetails: bankDetails
 }
 
 extend type Mutation {
   createProductRate(input: productRateInput!): Boolean
+  updateBankDetails(input: bankDetailsInput!): Boolean
 }
