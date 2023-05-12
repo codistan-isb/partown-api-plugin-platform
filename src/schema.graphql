@@ -112,6 +112,7 @@ extend type Query {
   revenueStats(year: Int!): RevenueData
   portfolio: Portfolio
   platformBankDetails: bankDetails
+  fetchBankDetails: bankDetails
 }
 
 extend type Mutation {

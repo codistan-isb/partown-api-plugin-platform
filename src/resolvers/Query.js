@@ -436,4 +436,21 @@ export default {
       return new Error(err);
     }
   },
+  async platformBankDetails(parent, args, context, info) {
+    try {
+      const { userId, authToken, collections } = context;
+      const { BankInfo } = collections;
+
+      return (({
+        sortCode,
+        accountNumber,
+        accountName,
+        paymentReferences,
+      }) => ({ sortCode, accountNumber, accountName, paymentReferences }))(
+        await BankInfo.findOne({ isPlatformInfo: true })
+      );
+    } catch (err) {
+      return err;
+    }
+  },
 };
