@@ -143,8 +143,12 @@ export default {
         },
 
         totalTrades: {
-          buy: buyTradesCount[0]?.totalCount,
-          sell: sellTradesCount[0]?.totalCost,
+          buy: buyTradesCount[0]?.totalCount
+            ? buyTradesCount[0]?.totalCount
+            : 0,
+          sell: sellTradesCount[0]?.totalCost
+            ? sellTradesCount[0]?.totalCost
+            : 0,
           monthlyTrend,
         },
         totalUsers: {
