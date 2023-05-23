@@ -113,6 +113,8 @@ extend type Query {
   portfolio: Portfolio
   platformBankDetails: bankDetails
   fetchBankDetails: bankDetails
+  
+
 }
 
 extend type Mutation {

@@ -1,67 +1,84 @@
-export default async function (userId, Trades, Catalog, Ownership) {
-  const trades = await Trades.find({ createdBy: userId }).toArray();
-  console.log("trades are ", trades);
-  const chartData = {};
-  trades.forEach((trade) => {
-    const date = new Date(trade.createdAt);
+function getCurrentPrice(priceHistory, transactionDate) {
+  let currentPrice = 0;
 
-    console.log("date is ", date);
-    const month = `${date.getMonth() + 1}-${date.getFullYear()}`;
-
-    console.log("month is ", month);
-    
-    if (!chartData[month]) {
-      chartData[month] = {
-        month: `${date.toLocaleString("default", {
-          month: "short",
-        })} ${date.getFullYear()}`,
-        totalInvested: 0,
-        currentValue: 0,
-      };
-    }
-    chartData[month].totalInvested += trade.price;
-  });
-
-  const products = await Catalog.find({}).toArray();
-
-  products.forEach((product) => {
-    const date = new Date(product.updatedAt);
-    const month = `${date.getMonth() + 1}-${date.getFullYear()}`;
-    if (chartData[month]) {
-      chartData[month].currentValue +=
-        product.product.area.price *
-        Object.values(product.product.area.value).reduce(
-          (total, val) => total + val,
-          0
-        );
-    }
-  });
-
-  const currentMonth = `${
-    new Date().getMonth() + 1
-  }-${new Date().getFullYear()}`;
-  const performance = chartData[currentMonth]
-    ? chartData[currentMonth].currentValue -
-      chartData[currentMonth].totalInvested
-    : 0;
-
-  console.log("chart data is ", chartData);
-
-  const totalInvested = [];
-  const currentValue = [];
-
-  for (let i = 1; i <= 12; i++) {
-    const month = `${i}-${new Date().getFullYear()}`;
-    if (!chartData[month]) {
-      totalInvested.push(0);
-      currentValue.push(0);
-    } else {
-      totalInvested.push(chartData[month].totalInvested);
-      currentValue.push(chartData[month].currentValue);
+  for (let i = priceHistory.length - 1; i >= 0; i--) {
+    const { price, date } = priceHistory[i];
+    if (new Date(date) <= new Date(transactionDate)) {
+      currentPrice = price;
+      break;
     }
   }
 
-  console.log("performance is ", performance);
+  return currentPrice;
+}
 
-  return { totalInvested, currentValue, performance };
+export default async function (userId, collections) {
+  const { Catalog, Ownership, Transactions, Trades } = collections;
+
+  const products = await Catalog.find({}).toArray();
+
+  const transactions = await Transactions.find({
+    transactionBy: userId,
+    tradeTransactionType: { $exists: true, $ne: null },
+  }).toArray();
+
+  // Calculate current value and invested value for each month
+  const currentValue = new Array(12).fill(0);
+  const investedValue = new Array(12).fill(0);
+
+  transactions.forEach((transaction) => {
+    const { createdAt, amount, unitsQuantity, tradeTransactionType } =
+      transaction;
+
+    console.log([createdAt, amount, unitsQuantity, tradeTransactionType]);
+    const transactionMonth = new Date(createdAt).getMonth();
+
+    const product = products.find(
+      (p) => p.product.productId === transaction.productId
+    );
+    if (!product) return;
+
+    const { priceHistory } = product.product;
+
+    console.log("pricing history is ", priceHistory);
+
+    const transactionPrice = amount / unitsQuantity;
+
+    console.log("transaction Price is ", transactionPrice);
+    const currentPrice = getCurrentPrice(priceHistory, createdAt);
+
+    if (tradeTransactionType === "buy") {
+      if (transactionPrice > currentPrice) {
+        investedValue[transactionMonth] -= transactionPrice * unitsQuantity;
+      } else {
+        investedValue[transactionMonth] += transactionPrice * unitsQuantity;
+      }
+    } else if (tradeTransactionType === "sell") {
+      if (transactionPrice > currentPrice) {
+        investedValue[transactionMonth] += transactionPrice * unitsQuantity;
+      } else {
+        investedValue[transactionMonth] -= transactionPrice * unitsQuantity;
+      }
+    }
+
+    currentValue[transactionMonth] += currentPrice * unitsQuantity;
+  });
+
+  const performance = new Array(12).fill(0);
+  for (let i = 0; i < 12; i++) {
+    performance[i] = currentValue[i] - investedValue[i];
+  }
+
+  // Calculate total performance
+  const totalPerformance = performance.reduce(
+    (total, value) => total + value,
+    0
+  );
+  //get the current price from priceHistory
+
+  console.log("current value", currentValue);
+  console.log("invested value", investedValue);
+
+  console.log("total performance is ", totalPerformance);
+  return { currentValue, investedValue, totalPerformance };
 }

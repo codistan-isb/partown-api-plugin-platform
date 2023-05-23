@@ -246,12 +246,8 @@ export default {
 
       // unrealised capital gain:
 
-      const { totalInvested, currentValue, performance } = await userLineChart(
-        userId,
-        Trades,
-        Catalog,
-        Ownership
-      );
+      const { currentValue, investedValue, totalPerformance } =
+        await userLineChart(userId, collections);
 
       const [unrealisedCapitalGain] = await Trades.aggregate([
         {
@@ -356,7 +352,7 @@ export default {
         },
       ]).toArray();
 
-      console.log("total transactions are ", totalTransactions);
+      // console.log("total transactions are ", totalTransactions);
 
       const [{ totalDeposits = 0, totalWithdrawals = 0 } = {}] =
         totalTransactions;
@@ -380,9 +376,9 @@ export default {
         totalCost: totalCost?.totalCost ? totalCost?.totalCost : 0,
         netContributions,
         dividendsReceived,
-        investedValueArray: totalInvested,
+        investedValueArray: investedValue,
         currentValueArray: currentValue,
-        performance,
+        performance: totalPerformance,
         realisedPerformance:
           dividendsReceived + realisedCapitalGain?.realisedCapitalGain,
       };
