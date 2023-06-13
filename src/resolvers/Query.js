@@ -236,13 +236,28 @@ export default {
   async portfolio(parent, args, context, info) {
     try {
       const { authToken, userId, collections } = context;
-      const { Trades, Transactions, Catalog, Ownership } = collections;
-      let dividendsReceived = 0;
+      const { Trades, Transactions, Catalog, Ownership, Dividends } =
+        collections;
 
       console.log("userId for check", userId);
 
       if (!authToken || !userId)
         throw new ReactionError("access-denied", "Unauthorized");
+
+      //dividends
+      const [dividendsReceived] = await Dividends.aggregate([
+        {
+          $match: { dividendsTo: userId },
+        },
+        {
+          $group: {
+            _id: null,
+            dividendsReceived: {
+              $sum: "$amount",
+            },
+          },
+        },
+      ]).toArray();
 
       // unrealised capital gain:
 
@@ -363,6 +378,14 @@ export default {
         total: totalDeposits - totalWithdrawals,
       };
 
+      let capitalGain = realisedCapitalGain
+        ? realisedCapitalGain?.realisedCapitalGain
+        : 0;
+      let realisedPerformance =
+        dividendsReceived?.dividendsReceived + capitalGain;
+      console.log("capital gain", capitalGain);
+      console.log("");
+
       return {
         unrealisedCapitalGain: unrealisedCapitalGain?.unrealisedCapitalGain
           ? unrealisedCapitalGain?.unrealisedCapitalGain
@@ -375,12 +398,11 @@ export default {
           : 0,
         totalCost: totalCost?.totalCost ? totalCost?.totalCost : 0,
         netContributions,
-        dividendsReceived,
+        dividendsReceived: dividendsReceived?.dividendsReceived,
         investedValueArray: investedValue,
         currentValueArray: currentValue,
         performance: totalPerformance,
-        realisedPerformance:
-          dividendsReceived + realisedCapitalGain?.realisedCapitalGain,
+        realisedPerformance,
       };
     } catch (err) {
       return err;
