@@ -1,6 +1,9 @@
-import decodeOpaqueId from "@reactioncommerce/api-utils/decodeOpaqueId.js";
-import ReactionError from "@reactioncommerce/reaction-error";
 import userLineChart from "../util/userLineChart.js";
+import decodeOpaqueId from "@reactioncommerce/api-utils/decodeOpaqueId.js";
+import getPaginatedResponse from "@reactioncommerce/api-utils/graphql/getPaginatedResponse.js";
+import wasFieldRequested from "@reactioncommerce/api-utils/graphql/wasFieldRequested.js";
+import ReactionError from "@reactioncommerce/reaction-error";
+
 
 const calculateTotalRevenue = (transactions) => {
   return transactions.reduce((total, transaction) => {
@@ -473,6 +476,28 @@ export default {
       );
     } catch (err) {
       return err;
+    }
+  },
+  async userBanks(parent, args, context, info) {
+    try {
+      const { userId, authToken, collections } = context;
+      if (!authToken || !userId)
+        throw new ReactionError("access-denied", "Unauthorized");
+
+      const { searchQuery, ...connectionArgs } = args;
+      const { BankInfo } = collections;
+
+      let userBanks = await BankInfo.find({ accountId: userId });
+      return getPaginatedResponse(userBanks, connectionArgs, {
+        includeHasNextPage: wasFieldRequested("pageInfo.hasNextPage", info),
+        includeHasPreviousPage: wasFieldRequested(
+          "pageInfo.hasPreviousPage",
+          info
+        ),
+        includeTotalCount: wasFieldRequested("totalCount", info),
+      });
+    } catch (err) {
+      return err
     }
   },
 };

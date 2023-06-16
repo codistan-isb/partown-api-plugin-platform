@@ -1,3 +1,5 @@
+import ObjectID from "mongodb";
+import ReactionError from "@reactioncommerce/reaction-error";
 export default {
   async createProductRate(parent, args, context, info) {
     try {
@@ -58,23 +60,18 @@ export default {
         accountName,
         paymentReferences,
         isPlatformInfo,
+        alias,
       } = args.input;
 
       const adminAccount = await Accounts.findOne({
         _id: userId,
       });
 
-      console.log("admin account is ", adminAccount);
-
-      console.log("adminAccount?.adminUIShopIds", adminAccount?.adminUIShopIds);
-
       if (
-        !adminAccount?.adminUIShopIds?.length ||
+        (isPlatformInfo && !adminAccount?.adminUIShopIds?.length) ||
         adminAccount?.adminUIShopIds?.length < 0
       )
-        return new Error(
-          "You are not permitted to update Platform bank details"
-        );
+        return new Error("You are not permitted to perform this action");
 
       let response;
 
@@ -111,11 +108,30 @@ export default {
           accountName,
           paymentReferences,
           isPlatformInfo,
+          alias,
           accountId: userId,
         });
       }
 
       return response?.result?.n > 0;
+    } catch (err) {
+      return err;
+    }
+  },
+  async removeBank(_, { bankId }, context, info) {
+    try {
+      const { userId, authToken, collections } = context;
+
+      if (!authToken || !userId)
+        throw new ReactionError("access-denied", "Unauthorized");
+
+      const { BankInfo } = collections;
+
+      const { result } = await BankInfo.remove({
+        _id: ObjectID.ObjectId(bankId),
+        accountId: userId,
+      });
+      return result?.n > 0;
     } catch (err) {
       return err;
     }
