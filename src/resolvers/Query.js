@@ -3,7 +3,7 @@ import decodeOpaqueId from "@reactioncommerce/api-utils/decodeOpaqueId.js";
 import getPaginatedResponse from "@reactioncommerce/api-utils/graphql/getPaginatedResponse.js";
 import wasFieldRequested from "@reactioncommerce/api-utils/graphql/wasFieldRequested.js";
 import ReactionError from "@reactioncommerce/reaction-error";
-
+import totalInvestedAmount from "../util/totalInvestedAmount.js";
 
 const calculateTotalRevenue = (transactions) => {
   return transactions.reduce((total, transaction) => {
@@ -247,6 +247,29 @@ export default {
       if (!authToken || !userId)
         throw new ReactionError("access-denied", "Unauthorized");
 
+      //amount Invested
+      // const {
+      //   totalInvestedValue: investedValue,
+      //   currentValue,
+      //   unrealisedCapitalGain,
+      //   monthlyTotalInvestedValue,
+      //   monthlyCurrentValue,
+      // } = await totalInvestedAmount(context, userId);
+
+      // console.log({
+      //   totalInvestedValue: investedValue,
+      //   currentValue,
+      //   unrealisedCapitalGain,
+      //   monthlyTotalInvestedValue,
+      //   monthlyCurrentValue,
+      // });
+
+      const res = await totalInvestedAmount(context, userId);
+
+      return null;
+
+      const totalPerformance = unrealisedCapitalGain;
+
       //dividends
       const [dividendsReceived] = await Dividends.aggregate([
         {
@@ -264,28 +287,29 @@ export default {
 
       // unrealised capital gain:
 
-      const { currentValue, investedValue, totalPerformance } =
-        await userLineChart(userId, collections);
+      // const { currentValue, investedValue, totalPerformance } =
+      //   await userLineChart(userId, collections);
 
-      const [unrealisedCapitalGain] = await Trades.aggregate([
-        {
-          $match: {
-            createdBy: userId,
-            completionStatus: { $ne: "completed" },
-            tradeType: { $ne: "offer" },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            unrealisedCapitalGain: {
-              $sum: { $multiply: ["$price", "$area"] },
-            },
-          },
-        },
-      ]).toArray();
+      // const [unrealisedCapitalGain] = await Trades.aggregate([
+      //   {
+      //     $match: {
+      //       createdBy: userId,
+      //       completionStatus: { $ne: "completed" },
+      //       tradeType: { $ne: "offer" },
+      //     },
+      //   },
+      //   {
+      //     $group: {
+      //       _id: null,
+      //       unrealisedCapitalGain: {
+      //         $sum: { $multiply: ["$price", "$area"] },
+      //       },
+      //     },
+      //   },
+      // ]).toArray();
 
       //realised capital gain
+
       const [realisedCapitalGain] = await Trades.aggregate([
         {
           $match: {
@@ -305,39 +329,42 @@ export default {
       ]).toArray();
 
       //total amount invested
-      const [totalInvestment] = await Trades.aggregate([
-        {
-          $match: {
-            createdBy: userId,
-            tradeType: { $ne: "bid" },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            totalInvestment: {
-              $sum: { $multiply: ["$price", "$area"] },
-            },
-          },
-        },
-      ]).toArray();
+      // const [totalInvestment] = await Trades.aggregate([
+      //   {
+      //     $match: {
+      //       createdBy: userId,
+      //       tradeType: { $ne: "bid" },
+      //     },
+      //   },
+      //   {
+      //     $group: {
+      //       _id: null,
+      //       totalInvestment: {
+      //         $sum: { $multiply: ["$price", "$area"] },
+      //       },
+      //     },
+      //   },
+      // ]).toArray();
 
       //total cost
-      const [totalCost] = await Transactions.aggregate([
-        {
-          $match: {
-            transactionBy: userId,
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            totalCost: {
-              $sum: "$amount",
-            },
-          },
-        },
-      ]).toArray();
+      // const [totalCost] = await Transactions.aggregate([
+      //   {
+      //     $match: {
+      //       transactionBy: userId,
+      //     },
+      //   },
+      //   {
+      //     $group: {
+      //       _id: null,
+      //       totalCost: {
+      //         $sum: "$amount",
+      //       },
+      //     },
+      //   },
+      // ]).toArray();
+
+      const totalCost = 0;
+
       const totalTransactions = await Transactions.aggregate([
         {
           $match: {
@@ -390,20 +417,16 @@ export default {
       console.log("");
 
       return {
-        unrealisedCapitalGain: unrealisedCapitalGain?.unrealisedCapitalGain
-          ? unrealisedCapitalGain?.unrealisedCapitalGain
-          : 0,
+        unrealisedCapitalGain,
         realisedCapitalGain: realisedCapitalGain?.realisedCapitalGain
           ? realisedCapitalGain?.realisedCapitalGain
           : 0,
-        amountInvested: totalInvestment?.totalInvestment
-          ? totalInvestment?.totalInvestment
-          : 0,
-        totalCost: totalCost?.totalCost ? totalCost?.totalCost : 0,
+        amountInvested: investedValue,
+        totalCost,
         netContributions,
         dividendsReceived: dividendsReceived?.dividendsReceived,
-        investedValueArray: investedValue,
-        currentValueArray: currentValue,
+        investedValueArray: monthlyTotalInvestedValue,
+        currentValueArray: monthlyCurrentValue,
         performance: totalPerformance,
         realisedPerformance,
       };
@@ -454,8 +477,12 @@ export default {
         aggregateParams
       ).toArray();
       return {
-        totalPayments: totalAmount[0]?.totalAmount,
-        platformFees: totalAmount[0]?.totalFeesAmount,
+        totalPayments: totalAmount[0]?.totalAmount
+          ? totalAmount[0]?.totalAmount
+          : 0,
+        platformFees: totalAmount[0]?.totalFeesAmount
+          ? totalAmount[0]?.totalFeesAmount
+          : 0,
       };
     } catch (err) {
       return new Error(err);
@@ -497,7 +524,7 @@ export default {
         includeTotalCount: wasFieldRequested("totalCount", info),
       });
     } catch (err) {
-      return err
+      return err;
     }
   },
 };
