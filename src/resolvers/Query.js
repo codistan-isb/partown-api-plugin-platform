@@ -264,9 +264,13 @@ export default {
       //   monthlyCurrentValue,
       // });
 
-      const res = await totalInvestedAmount(context, userId);
-
-      return null;
+      const {
+        totalInvestedValue : investedValue,
+        currentValue,
+        unrealisedCapitalGain,
+        monthlyTotalInvestedValue,
+        monthlyCurrentValue,
+      } = await totalInvestedAmount(context, userId);
 
       const totalPerformance = unrealisedCapitalGain;
 
