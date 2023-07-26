@@ -4,6 +4,7 @@ import getPaginatedResponse from "@reactioncommerce/api-utils/graphql/getPaginat
 import wasFieldRequested from "@reactioncommerce/api-utils/graphql/wasFieldRequested.js";
 import ReactionError from "@reactioncommerce/reaction-error";
 import totalInvestedAmount from "../util/totalInvestedAmount.js";
+import realisedGain from "../util/realisedCapitalGain.js";
 
 const calculateTotalRevenue = (transactions) => {
   return transactions.reduce((total, transaction) => {
@@ -265,7 +266,7 @@ export default {
       // });
 
       const {
-        totalInvestedValue : investedValue,
+        totalInvestedValue: investedValue,
         currentValue,
         unrealisedCapitalGain,
         monthlyTotalInvestedValue,
@@ -277,11 +278,11 @@ export default {
       //dividends
       const [dividendsReceived] = await Dividends.aggregate([
         {
-          $match: { dividendsTo: userId },
+          $match: { dividendTo: userId },
         },
         {
           $group: {
-            _id: null,
+            _id: "$_id", // Correctly specifying the field to group by
             dividendsReceived: {
               $sum: "$amount",
             },
@@ -313,24 +314,25 @@ export default {
       // ]).toArray();
 
       //realised capital gain
+      const realisedCapitalGain = await realisedGain(context, userId);
 
-      const [realisedCapitalGain] = await Trades.aggregate([
-        {
-          $match: {
-            createdBy: userId,
-            completionStatus: "completed",
-            tradeType: { $ne: "offer" },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            realisedCapitalGain: {
-              $sum: { $multiply: ["$price", "$area"] },
-            },
-          },
-        },
-      ]).toArray();
+      // const [realisedCapitalGain] = await Trades.aggregate([
+      //   {
+      //     $match: {
+      //       createdBy: userId,
+      //       completionStatus: "completed",
+      //       tradeType: { $ne: "offer" },
+      //     },
+      //   },
+      //   {
+      //     $group: {
+      //       _id: null,
+      //       realisedCapitalGain: {
+      //         $sum: { $multiply: ["$price", "$area"] },
+      //       },
+      //     },
+      //   },
+      // ]).toArray();
 
       //total amount invested
       // const [totalInvestment] = await Trades.aggregate([
@@ -422,9 +424,7 @@ export default {
 
       return {
         unrealisedCapitalGain,
-        realisedCapitalGain: realisedCapitalGain?.realisedCapitalGain
-          ? realisedCapitalGain?.realisedCapitalGain
-          : 0,
+        realisedCapitalGain: realisedCapitalGain ? realisedCapitalGain : 0,
         amountInvested: investedValue,
         totalCost,
         netContributions,
