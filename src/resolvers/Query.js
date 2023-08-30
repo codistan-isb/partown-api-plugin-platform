@@ -497,14 +497,7 @@ export default {
       const { userId, authToken, collections } = context;
       const { BankInfo } = collections;
 
-      return (({
-        sortCode,
-        accountNumber,
-        accountName,
-        paymentReferences,
-      }) => ({ sortCode, accountNumber, accountName, paymentReferences }))(
-        await BankInfo.findOne({ isPlatformInfo: true })
-      );
+      return await BankInfo.findOne({ isPlatformInfo: true });
     } catch (err) {
       return err;
     }

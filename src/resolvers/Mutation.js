@@ -5,6 +5,10 @@ export default {
     try {
       let { sellerFee, buyerFee, productType } = args.input;
 
+      if (sellerFee > 100 || buyerFee > 100) {
+        return new Error("Platform fee cannot be greater than 100%");
+      }
+
       let { ProductRate } = context.collections;
 
       let { auth, authToken, userId } = context;
@@ -61,6 +65,7 @@ export default {
         paymentReferences,
         isPlatformInfo,
         alias,
+        bankName,
       } = args.input;
 
       const adminAccount = await Accounts.findOne({
@@ -88,6 +93,7 @@ export default {
             paymentReferences || existingRecord.paymentReferences,
           isPlatformInfo,
           accountId: userId,
+          bankName,
         };
 
         if (existingRecord) {
@@ -110,6 +116,7 @@ export default {
           isPlatformInfo,
           alias,
           accountId: userId,
+          bankName,
         });
       }
 

@@ -22,6 +22,7 @@ input BankDetailsInput {
   paymentReferences: String
   isPlatformInfo: Boolean!
   alias: String
+  bankName: String
 }
 
 input filtersInput {
@@ -57,6 +58,7 @@ type BankDetails implements Node {
   isPlatformInfo: Boolean
   accountId: ID
   alias: String
+  bankName: String
 }
 
 type BankDetailsEdge implements NodeEdge {
