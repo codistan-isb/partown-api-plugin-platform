@@ -20,6 +20,7 @@ const resolvers = {
 };
 
 export default async function register(app) {
+  console.log("*** Partown Platform Plugin Being Changed ***")
   await app.registerPlugin({
     label: pkg.label,
     name: pkg.name,

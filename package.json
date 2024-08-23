@@ -2,7 +2,7 @@
   "name": "@partown/partown-api-plugin-platform",
   "description": "Boilerplate Example plugin for the Reaction API",
   "label": "Example Plugin",
-  "version": "4.15.0-development",
+  "version": "5.15.0-development",
   "main": "index.js",
   "type": "module",
   "engines": {
@@ -26,7 +26,8 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@reactioncommerce/api-utils": "^1.16.9"
+    "@reactioncommerce/api-utils": "^1.16.9",
+    "nodemailer": "^6.9.14"
   },
   "devDependencies": {
     "@babel/core": "^7.7.7",

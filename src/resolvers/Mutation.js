@@ -1,5 +1,6 @@
 import ObjectID from "mongodb";
 import ReactionError from "@reactioncommerce/reaction-error";
+import {SendEmail} from "../util/sendEmail.cjs";
 export default {
   async createProductRate(parent, args, context, info) {
     try {
@@ -120,6 +121,13 @@ export default {
         });
       }
 
+      console.log("user email", adminAccount?.emails?.[0]?.address)
+      await SendEmail({
+        from: process.env.SENDGRID_EMAIL,
+        to: adminAccount?.emails?.[0]?.address?.trim(),
+        subject: "Bank Details Update",
+        body: "Your Bank Details updated." // we can change it later
+      })
       return response?.result?.n > 0;
     } catch (err) {
       return err;
